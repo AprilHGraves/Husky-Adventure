@@ -184,6 +184,11 @@ const ANIMATIONS = {
     y: 116,
     x: [0, 90, 180, 270, 360]
   },
+  jumping: {
+    delay: 10,
+    y: 116,
+    x: [0, 90, 180, 270, 360]
+  },
   sitting: {
     delay: 50,
     y: 174,
@@ -217,6 +222,7 @@ class Husky {
     this.xPos = (width / 2) - (this.width / 2);
     this.yPos = 100;
     this.velX = 0;
+    this.velY = 0;
     this.sprites = new Image();
     this.heldKeys = {
       a: false,
@@ -230,6 +236,10 @@ class Husky {
     if (key === "w" && this.action === "sitting") {
       this.frame = 0;
       this.action = "stand";
+    } else if (key === "w" && this.action === "running") {
+      this.frame = 0;
+      this.action = "jumping";
+      this.velY = 7;
     } else if (key === "s" && this.action === "standing") {
       this.frame = 0;
       this.action = "sit";
@@ -274,6 +284,15 @@ class Husky {
       this.frame = 0;
       this.action = "standing";
     }
+
+    if (this.yPos < 100) {
+      if (this.velY > 0) {
+        this.velY -= .5;
+      }
+      this.yPos += (1 - this.velY);
+    } else if (this.velY > 0) {
+      this.yPos -= this.velY;
+    }
   }
 
   animate(ctx) {
@@ -284,7 +303,8 @@ class Husky {
       animIdx = 0;
       const changeActionObj = {
         sit: 'sitting',
-        stand: 'standing'
+        stand: 'standing',
+        jumping: 'running'
       };
       if (changeActionObj[this.action]) {
         this.action = changeActionObj[this.action];
