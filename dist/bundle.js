@@ -86,6 +86,53 @@
 /************************************************************************/
 /******/ ({
 
+/***/ "./lib/background.js":
+/*!***************************!*\
+  !*** ./lib/background.js ***!
+  \***************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+class Background {
+  constructor(width, height) {
+    this.background1 = new Image();
+    this.background1.src = "./assets/images/Nuvens.png";
+    this.background2 = new Image();
+    this.background2.src = "./assets/images/Backgroud2.png";
+    this.background3 = new Image();
+    this.background3.src = "./assets/images/Backgroud3.png";
+    this.spriteSheet = new Image();
+    this.spriteSheet.src = "./assets/images/Assets.png";
+    this.x1 = 0;
+    this.x2 = 0;
+    this.x3 = 0;
+    this.x4 = 0;
+    this.speed = 0;
+    // this.foreground = new Image();
+  }
+
+  draw(ctx) {
+    ctx.drawImage(this.background1, this.x1, 0);
+    ctx.drawImage(this.background1, this.x1 - 384, 0);
+    ctx.drawImage(this.background1, this.x1 + 384, 0);
+    ctx.drawImage(this.background2, this.x2, 0);
+    ctx.drawImage(this.background2, this.x2 + 384, 0);
+    ctx.drawImage(this.background3, this.x3, 0);
+    ctx.drawImage(this.background3, this.x3 + 384, 0);
+    for (let i=0; i < 15; i++) {
+      ctx.drawImage(this.spriteSheet, 150, 32, 32, 16, this.x4 + (i * 32), 140, 32, 16);
+    }
+    this.x1 = (this.x1 >= 384 || this.x1 <= -384) ? 0 : (this.x1 + .25 - (this.speed * .25));
+    this.x2 = this.x2 <= -384 ? 0 : (this.x2 - (this.speed * .5));
+    this.x3 = this.x3 <= -384 ? 0 : (this.x3 - (this.speed * .75));
+    this.x4 = this.x4 <= -100 ? 0 : (this.x4 - (this.speed));
+  }
+}
+
+module.exports = Background;
+
+/***/ }),
+
 /***/ "./lib/game.js":
 /*!*********************!*\
   !*** ./lib/game.js ***!
@@ -95,6 +142,7 @@
 
 
 const Husky = __webpack_require__(/*! ./husky */ "./lib/husky.js");
+const Background = __webpack_require__(/*! ./background */ "./lib/background.js");
 
 class Game {
   constructor(canvas) {
@@ -116,11 +164,12 @@ class Game {
     });
   }
 
-  animate() {
+  draw() {
     if (!this.paused) {
       this.ctx.clearRect(0, 0, 750, 500);
-      this.husky.animate(this.ctx);
-      requestAnimationFrame(this.animate.bind(this));
+      this.background.draw(this.ctx);
+      this.husky.draw(this.ctx);
+      requestAnimationFrame(this.draw.bind(this));
     }
   }
 
@@ -140,7 +189,7 @@ class Game {
     this.audio.play();
     document.addEventListener('keydown', this.pressKey.bind(this));
     document.addEventListener('keyup', this.releaseKey.bind(this));
-    this.animate();
+    this.draw();
   }
 
   pause() {
@@ -151,7 +200,8 @@ class Game {
   }
 
   restart() {
-    this.husky = new Husky(this.width, this.height);
+    this.background = new Background(this.width, this.height);
+    this.husky = new Husky(this.width, this.height, this.background);
     this.audio.currentTime = 0;
   }
 
@@ -170,7 +220,7 @@ module.exports = Game;
 
 const ANIMATIONS = {
   barking: {
-    delay: 15,
+    delay: 30,
     y: 0,
     x: [0, 90, 180, 270]
   },
@@ -213,17 +263,20 @@ const ANIMATIONS = {
 };
 
 class Husky {
-  constructor(width, height) {
+  constructor(width, height, background) {
+    this.background = background;
     this.action = "standing";
     this.direction = "right";
     this.frame = 0;
     this.width = 48;
     this.height = 32;
-    this.xPos = (width / 2) - (this.width / 2);
-    this.yPos = 100;
+    this.xPos = 20;
+    // this.xPos = (width / 2) - (this.width / 2);
+    this.yPos = 108;
     this.velX = 0;
     this.velY = 0;
     this.sprites = new Image();
+    this.sprites.src = './assets/images/dog_right.png';
     this.heldKeys = {
       a: false,
       d: false
@@ -243,11 +296,6 @@ class Husky {
     } else if (key === "s" && this.action === "standing") {
       this.frame = 0;
       this.action = "sit";
-    } else if (key === "a") {
-      if (this.direction === "right") {
-        this.direction = "left";
-        this.velX = 0;
-      }
     } else if (key === "d") {
       if (this.direction === "left") {
         this.direction = "right";
@@ -262,9 +310,7 @@ class Husky {
   }
 
   move() {
-    if (this.heldKeys.a && this.velX > -20) {
-      this.velX -= 1;
-    } else if (this.heldKeys.d && this.velX < 20) {
+    if (this.heldKeys.d && this.velX < 20) {
       this.velX += 1;
     } else {
       if (this.velX > 0 ) {
@@ -277,15 +323,18 @@ class Husky {
     if (this.action !== "walking" && absVel > 0 && absVel < 10) {
       this.frame = 0;
       this.action = "walking";
+      this.background.speed = 1;
     } else if (this.action === "walking" && absVel > 9) {
       this.frame = 0;
       this.action = "running";
+      this.background.speed = 2;
     } else if (this.action === "walking" && absVel === 0) {
       this.frame = 0;
       this.action = "standing";
+      this.background.speed = 0;
     }
 
-    if (this.yPos < 100) {
+    if (this.yPos < 108) {
       if (this.velY > 0) {
         this.velY -= .5;
       }
@@ -295,7 +344,7 @@ class Husky {
     }
   }
 
-  animate(ctx) {
+  draw(ctx) {
     const animationSet = ANIMATIONS[this.action];
     let animIdx = Math.floor(this.frame / animationSet.delay);
     if (animIdx === animationSet.x.length) {
@@ -313,12 +362,13 @@ class Husky {
       this.frame = this.frame + 1;
     }
     let x = animationSet.x[animIdx || 0];
-    if (this.direction === "right") {
-      x = (540 - x) - 90;
-      this.sprites.src = './assets/images/dog_right.png';
-    } else {
-      this.sprites.src = './assets/images/dog_left.png';
-    }
+    x = (540 - x) - 90;    
+    // if (this.direction === "right") {
+    //   x = (540 - x) - 90;
+    //   this.sprites.src = './assets/images/dog_right.png';
+    // } else {
+    //   this.sprites.src = './assets/images/dog_left.png';
+    // }
     this.move();
     ctx.drawImage(this.sprites, x, animationSet.y, 90, 58, this.xPos, this.yPos, this.width, this.height);
   }
