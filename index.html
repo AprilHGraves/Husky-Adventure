@@ -3,18 +3,67 @@
   <head>
     <title>Husky Adventure</title>
     <link href="./assets/stylesheets/reset.css" rel="stylesheet">
-    <link href="./assets/stylesheets/canvas.css" rel="stylesheet">
+    <link href="./assets/stylesheets/main.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <script type="text/javascript" src="./dist/bundle.js"></script>
   </head>
   <body>
+    <nav>
+      <div class="nav-left">
+        <div class="husky-pic"></div>
+        <h1>Husky Adventure</h1>
+      </div>
+      <div class="links">
+        <a href="https://github.com/AprilHGraves/Husky-Adventure">
+          Github
+        </a>
+        <a href="#Placeholder">
+          LinkedIn
+        </a>
+      </div>
+    </nav>
+    
     <canvas id="game-canvas"></canvas>
-    <ul>
-      <li>Click the canvas to play / pause.</li>
-      <li>w: jump while running</li>
-      <li>a: bark while standing to blow back enemies</li>
-      <li>s: sit while standing to recover energy quickly</li>
-      <li>d: run</li>
-      <li>space: press when the note is on the screen to increase energy</li>
-    </ul>
+    <div class="outer-box">
+      <h2>Instructions</h2>
+      <div class="inner-box">
+        <ul>
+          <li>enter: play / pause.</li>
+          <li>m: mute / unmute</li>
+          <li>w: jump (must be running)</li>
+          <li>a: bark and blow back enemies (must be standing)</li>
+          <li>s: sit (must be standing)</li>
+          <li>d: run</li>
+  
+        </ul>
+        <ul>
+          <li>Enemies die from hard impacts</li>        
+          <li>space: increase energy (more energy while sitting).</li> 
+          <li>ijkl: move energy</li>
+          <li>left shift: grab enemies near the energy</li>
+          <li>right shift: release held enemies</li>
+        </ul>
+      </div>
+    </div>
+    <footer>
+      <div class="outer-box">
+        <h2>Credits</h2>
+        <div class="inner-box">
+          <ul>
+            <li>Radio Etalia from Chance de la Soul on opengameart.org</li>
+            <li>Dog Whine from Partners in Rhyme on freesoundeffects.com</li>
+            <li>Dog Bark from Partners in Rhyme on freesoundeffects.com</li>
+            <li>Enemy Death from rubberduck on opengameart.org</li>
+          </ul>
+          <ul>
+            <li>Husky from Hellkipz and Shepardskin on opengameart.org</li>
+            <li>Background from Anokolisa on itch.io</li>
+            <li>Bat from bagzie on opengameart.org</li>
+            <li>Skeleton from Stephen Challener (Redshrike) on opengameart.org</li>
+            <li>Magic from Cethiel on opengameart.org</li>
+          </ul>
+        </div>
+      </div>
+    </footer>
   </body>
 </html>

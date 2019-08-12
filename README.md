@@ -48,3 +48,17 @@ Sidescroller where a psychic husky defeats enemies
 
 ## Bonuses
 * Firebase for saving data
+
+## Credits
+### Audio
+* Radio Etalia from Chance de la Soul on opengameart.org
+* Dog Whine from Partners in Rhyme on freesoundeffects.com
+* Dog Bark from Partners in Rhyme on freesoundeffects.com
+* Enemy Death from rubberduck on opengameart.org
+### Images
+* Husky from Hellkipz and Shepardskin on opengameart.org
+* Background from Anokolisa on itch.io
+* Bat from bagzie on opengameart.org
+* Skeleton from Stephen Challener (Redshrike) on opengameart.org
+* Magic from Cethiel on opengameart.org
+

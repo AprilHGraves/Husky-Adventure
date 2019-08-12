@@ -121,7 +121,11 @@ class Background {
     for (let i=0; i < 15; i++) {
       ctx.drawImage(this.envAssets, 150, 32, 32, 16, this.xGround + (i * 32), 140, 32, 16);
     }
-    this.xCloud = (this.xCloud >= 384 || this.xCloud <= -384) ? 0 : (this.xCloud + .25 - (this.husky.speed * .25));
+    this.xCloud = (this.xCloud >= 384 || this.xCloud <= -384) ? 0 : (this.xCloud + .2 - (this.husky.speed * .25));
+  }
+
+  tick(ctx) {
+    this.draw(ctx);
     this.xTree1 = this.xTree1 <= -384 ? 0 : (this.xTree1 - (this.husky.speed * .5));
     this.xTree2 = this.xTree2 <= -384 ? 0 : (this.xTree2 - (this.husky.speed * .75));
     this.xGround = this.xGround <= -100 ? 0 : (this.xGround - (this.husky.speed));
@@ -144,9 +148,9 @@ const Enemy = __webpack_require__(/*! ./enemy */ "./lib/enemy.js");
 class Bat extends Enemy {
   constructor(game, husky) {
     super(game, husky);
-    this.yPos = Math.floor(Math.random() * 68) + 30;
+    this.yPos = Math.floor(Math.random() * 80) + 40;
     this.sprites.src = './assets/images/enemy_bat.png';
-    this.animationSet = {
+    this.enemyAnimation = {
       width: 32,
       height: 32,
       delay: 15,
@@ -157,8 +161,12 @@ class Bat extends Enemy {
 
   move() {
     super.move();
-    if (!this.bound && this.yPos > 75 && this.velY > -3 && Math.random() > .7) {
-      this.velY = -2;
+    if (!this.bound && !this.dead && this.stunCount === 0 && this.yPos > 75 && this.velY > -3) {
+      if (this.yPos > 120) {
+        this.velY = -2;
+      } else if (Math.random() > .8) {        
+        this.velY = -2;
+      }
     }
   }
 
@@ -182,49 +190,83 @@ class Enemy {
     this.frame = 0;
     this.width = 32;
     this.height = 32;
-    this.xPos = 280;
-    this.yPos = 108;
+    this.xPos = 290;
+    this.yPos = 129;
     this.velX = -.5;
     this.velY = 0;
     this.sprites = new Image();
     this.bound = false;
+    this.stunCount = 0;
+    this.deathSound = new Audio('./assets/audio/retro_die_02.ogg');   
+  }
+
+  die() {
+    this.dead = true;
+    this.velY = 0;
+    this.frame = 0;
+    this.sprites.src = './assets/images/explosion.png';
+    this.enemyAnimation = {
+      width: 32,
+      height: 32,
+      delay: 10,
+      y: 0,
+      x: [0, 32, 64, 96, 128, 160]
+    };
+    this.game.addScore(5);
+    this.game.playSound(this.deathSound);
+    setTimeout(() => {
+      this.game.delEnemy(this)
+    }, 500);
   }
 
   move() {
-    if (!this.bound) {
-      if (this.yPos < 108) {
+    if (this.dead) {
+      this.xPos -= this.husky.speed;
+    } else if (!this.bound) {
+      if (this.yPos < 129) {
         this.velY += .3;
-      }
-      if (this.yPos >= 108) {
-        this.yPos = 108;
-        this.velY = 0;
-      }
-      if (this.velX > -.5) {
+      }      
+      if (this.velX > -.5 && (this.stunCount === 0 || this.dead)) {
         this.velX -= .5;
-      }
+      }      
       this.xPos += this.velX - (this.husky.speed);
     } else {
       this.xPos += this.velX;
     }
     this.yPos += this.velY;
+    if (this.yPos >= 129) {
+      this.yPos = 129;
+      if (this.velY > 6) {
+        if (!this.dead) {
+          this.die();
+        }        
+      } else {
+        this.velY = 0;
+      }
+    }
   }
 
-  tick(ctx) {
-    let animIdx = Math.floor(this.frame / this.animationSet.delay);
-    if (animIdx === this.animationSet.x.length) {
-      this.frame = 0;
-      animIdx = 0;
-    } else {
-      this.frame = this.frame + 1;
-    }
-    let x = this.animationSet.x[animIdx || 0];
+  tick(ctx) {      
+    if (this.stunCount > 0) {
+      this.stunCount -= 1;
+    }    
     this.move();
-    ctx.drawImage(this.sprites, x, this.animationSet.y, this.animationSet.width, this.animationSet.height, this.xPos, this.yPos, this.width, this.height);
-    if (this.xPos < -10) {
+    this.draw(ctx);
+    if (this.xPos < -30) {
       this.game.delEnemy(this);
     }
+    this.frame = this.frame + 1;
   }
 
+  draw(ctx) {
+    let animIdx = Math.floor(this.frame / this.enemyAnimation.delay);
+    if (this.stunCount === 0 && animIdx === this.enemyAnimation.x.length) {
+      this.frame = 0;
+      animIdx = 0;
+    }
+    let x = this.enemyAnimation.x[animIdx || 0];
+    ctx.drawImage(this.sprites, x, this.enemyAnimation.y, this.enemyAnimation.width, this.enemyAnimation.height, this.xPos - (this.width/2), this.yPos - (this.height/1.5), this.width, this.height);
+  }
 }
 
 module.exports = Enemy;
@@ -253,24 +295,30 @@ class Game {
     this.width = canvas.width;
     this.audio = new Audio('./assets/audio/Radio Etalia.mp3');
     this.audio.loop = true;
-    this.paused = true;    
+    this.paused = true;
+    this.muted = false;
     this.audio.currentTime = 0;
-    this.beat = 0;
+    this.hiScore = 0;
     this.restart();
-    
-    document.addEventListener("mousedown", (event) => {
-      if (canvas.contains(event.target)) {
-        if (this.paused) {
-          this.enemySpawner = setInterval(() => {
-            this.addEnemy();
-          }, 2000);
-          this.play();
-        } else {
-          clearInterval(this.enemySpawner);
-          this.pause();
-        }
-      }
-    });
+    document.addEventListener('keydown', this.pressKey.bind(this));    
+    this.drawOpening();
+  }
+
+  drawOpening() {
+    this.ctx.clearRect(0, 0, 750, 500);
+    this.background.draw(this.ctx); 
+    this.husky.draw(this.ctx);
+    this.ctx.strokeText("Press enter to play", (this.width / 2) - 45, 50);
+    if (this.paused) {
+      requestAnimationFrame(this.drawOpening.bind(this));
+    }
+  }
+
+  addScore(amount) {
+    this.score += amount;
+    if (this.husky.hp < 3 && this.score % 100 === 0) {
+      this.husky.hp += 1;
+    }
   }
 
   addEnemy() {
@@ -284,44 +332,84 @@ class Game {
   delEnemy(enemy) {
     const idx = this.enemies.indexOf(enemy);
     this.enemies.splice(idx, 1);
-    this.score += 5;
   }
 
   tick() {
-    this.beat += 1;
     this.ctx.clearRect(0, 0, 750, 500);
-    this.background.draw(this.ctx);
-    this.husky.tick(this.ctx);
-    this.light.tick(this.ctx);
-    this.enemies.forEach(enemy => enemy.tick(this.ctx));
+    if (this.paused) {
+      this.background.draw(this.ctx);
+      this.husky.draw(this.ctx);
+      this.enemies.forEach(enemy => enemy.tick(this.ctx));
+      this.ctx.strokeText("Press enter to unpause", (this.width / 2) - 50, 50);
+    } else {
+      this.background.tick(this.ctx);
+      this.husky.tick(this.ctx);
+      this.light.tick(this.ctx);
+      this.enemies.forEach(enemy => enemy.tick(this.ctx));
+      for (let i1=0,fin1=this.enemies.length; i1<fin1; i1++) {
+        const enemy = this.enemies[i1];
+        if ((Math.abs(enemy.velX) > 6 || Math.abs(enemy.velY) > 6) && (!enemy.bound || enemy.dead)) {
+          for (let i2=0,fin2=this.enemies.length; i2<fin2; i2++) {
+            const otherEnemy = this.enemies[i2];
+            if (i1 !== i2 && (!otherEnemy.bound || otherEnemy.dead)) {
+              if (Math.abs(enemy.xPos - otherEnemy.xPos) < 13 && Math.abs(enemy.yPos - otherEnemy.yPos) < 13) {
+                enemy.die();
+                otherEnemy.die();
+                break
+              }
+            }
+          }
+        }
+      }
+    }
     this.ctx.strokeText(`Score: ${this.score}`, 140, 16);
+    this.ctx.strokeText(`High Score: ${this.hiScore}`, 210, 16);
     if (!this.paused) {
       requestAnimationFrame(this.tick.bind(this));
     }
   }
 
   pressKey(e) {
-    this.husky.pressKey(e.key);
-    this.light.pressKey(e.key);
+    if (e.code === "Enter") {
+      if (this.paused) {
+        this.play();
+      } else {
+        this.pause();
+      }
+    } else if (e.code === "KeyM") {
+      this.audio.muted = !this.audio.muted;
+      this.muted = !this.muted;
+    } else if (!this.paused) {
+      this.husky.pressKey(e.code);
+      this.light.pressKey(e.code);
+    }
   }
 
   releaseKey(e) {
-    this.husky.releaseKey(e.key);
-    this.light.releaseKey(e.key);
+    this.husky.releaseKey(e.code);
+    this.light.releaseKey(e.code);
+  }
+
+  playSound(sound) {
+    if (!this.muted) {
+      sound.play()
+    }
   }
 
   play() {
     this.paused = false;
-    this.audio.play();
-    document.addEventListener('keydown', this.pressKey.bind(this));
+    this.audio.play();    
     document.addEventListener('keyup', this.releaseKey.bind(this));
+    this.enemySpawner = setInterval(() => {
+      this.addEnemy();
+    }, 2000);
     this.tick();
   }
 
   pause() {
+    clearInterval(this.enemySpawner);
     this.paused = true;
     this.audio.pause();
-    document.removeEventListener('keydown', this.pressKey);
     document.removeEventListener('keyup', this.releaseKey);
   }
 
@@ -330,6 +418,9 @@ class Game {
     this.background = new Background(this.husky);
     this.enemies = [new Bat(this, this.husky)];
     this.light = new Light(this, this.husky);
+    if (this.score > this.hiScore) {
+      this.hiScore = this.score;
+    }
     this.score = 0;
   }
 
@@ -393,17 +484,16 @@ class Husky {
   constructor(game) {
     this.game = game;
     this.action = "standing";
-    this.direction = "right";
     this.frame = 0;
     this.width = 48;
     this.height = 32;
-    this.xPos = 20;
-    this.yPos = 108;
+    this.xPos = 30;
+    this.yPos = 129;
     this.speed = 0;
     this.velX = 0;
     this.velY = 0;
     this.hp = 3;
-    this.energy = 50;
+    this.energy = 75;
     this.huskyPng = new Image();
     this.huskyPng.src = './assets/images/husky.png';
     this.heartPng = new Image();
@@ -416,67 +506,53 @@ class Husky {
     };
   }
 
-  pressKey(key) {
-    this.heldKeys[key] = true;
-    if (key === " " && this.energy < 100) {
-      const rem = this.game.beat % 90;
-      if ((rem <= 20 || rem >= 70)) {
-        this.energy += this.action === "sitting" ? 10:2;
-        this.energy = this.energy > 100 ? 100:this.energy;
-      } else if (this.energy > 3) {
-        this.energy -= 4;
-        this.energy = this.energy < 0 ? 0:this.energy;
+  pressKey(code) {
+    this.heldKeys[code] = true;    
+    if (code === "Space") {
+      this.energy += this.action === "sitting" ? 5 : 1;
+      if (this.energy > 100) {
+        this.energy = 100;        
       }
-    } else if (key === "w" && this.action === "sitting") {
+    } else if (code === "KeyW" && this.action === "sitting") {
       this.frame = 0;
       this.action = "stand";
-    } else if (key === "a" && (this.action === "standing" && this.energy >= 3)) {
+    } else if (code === "KeyA" && (this.action === "standing" && this.energy >= 3)) {
       this.frame = 0;
       this.action = "barking";
       this.bark.currentTime = 0;
-      setTimeout(() => {        
-        this.bark.play();
+      setTimeout(() => {
+        this.game.playSound(this.bark);
         this.game.enemies.forEach(enemy => {
           enemy.velX += 15;
         })
       }, 400);
       this.energy -= 3;
-    } else if (key === "w" && this.action === "running" && this.energy >= 5 && this.yPos === 108) {
+    } else if (code === "KeyW" && this.action === "running" && this.energy >= 5 && this.yPos === 129) {
       this.frame = 0;
       this.action = "jumping";
       this.velY = -5;
       this.energy -= 5;
-    } else if (key === "s" && (this.action === "standing")) {
+    } else if (code === "KeyS" && (this.action === "standing")) {
       this.velX = 0;
       this.frame = 0;
       this.action = "sit";
-    } else if (key === "d") {
-      if (this.direction === "left") {
-        this.direction = "right";
-        this.velX = 0;
-      }
     }
 
   }
 
-  releaseKey(key) {
-    this.heldKeys[key] = false;
+  releaseKey(code) {
+    this.heldKeys[code] = false;
   }
 
   checkCollision() {
     const enemies = this.game.enemies;
-    if (this.action === "sitting") {
-      console.log(this);
-    }
     for (let i=0,fin=enemies.length; i<fin; i++) {
       const enemy = enemies[i];
       if (Math.abs(this.xPos - enemy.xPos) < 20 && Math.abs(this.yPos - enemy.yPos) < 13) {
-        if (enemy.bound ) {
-          this.game.delEnemy(enemy);
-        } else {
+        if (!enemy.bound && !enemy.dead) {
           this.hp -= 1;
-          this.game.delEnemy(enemy);
-          this.whine.play();
+          this.game.playSound(this.whine);
+          enemy.die();
           if (this.hp === 0) {
             this.game.restart();
           }
@@ -487,7 +563,7 @@ class Husky {
   }
 
   move() {
-    if (this.heldKeys.d && this.velX < 20) {
+    if (this.heldKeys.KeyD && this.velX < 20) {
       this.velX += 1;
     } else {
       if (this.velX > 0 ) {
@@ -495,23 +571,22 @@ class Husky {
       }
     }
 
-    if (this.heldKeys.w && this.action === "jumping" && this.energy > 0) {
+    if (this.heldKeys.KeyW && this.action === "jumping" && this.energy > 0) {
       this.velY -= .15;
-      this.energy -= .05;
+      this.energy -= .02;
     }
     
-    if (this.yPos < 108) {
+    if (this.yPos < 129) {
       this.velY += .3;
     }
     this.yPos += this.velY;
-    if (this.yPos >= 108) {
-      this.yPos = 108;
+    if (this.yPos >= 129) {
+      this.yPos = 129;
       this.velY = 0;
     }
   }
 
-  tick(ctx) {
-    // calc husky sprite
+  draw(ctx) {
     const animationSet = ANIMATIONS[this.action];
     let animIdx = Math.floor(this.frame / animationSet.delay);
     if (animIdx === animationSet.x.length) {
@@ -526,23 +601,29 @@ class Husky {
       if (changeActionObj[this.action]) {
         this.action = changeActionObj[this.action];
       }
-    } else {
-      this.frame = this.frame + 1;
     }
     let x = animationSet.x[animIdx || 0];
     x = (540 - x) - 90;
-    // calc husky position
-    this.move();
     // draw husky
-    ctx.drawImage(this.huskyPng, x, animationSet.y, 90, 58, this.xPos, this.yPos, this.width, this.height);
-    this.checkCollision();
+    ctx.drawImage(this.huskyPng, x, animationSet.y, 90, 58, this.xPos - (this.width/2), this.yPos - (this.height/1.5), this.width, this.height);
+
     // draw hearts
     for (let i=0, fin=this.hp; i < fin; i++) {
       ctx.drawImage(this.heartPng, (20 * i) + 5, 5, 16, 16);
     }
-    // add to energy then draw energy
+    if (this.energy < 0) {
+      this.energy = 0;
+    }
+    // draw energy
     ctx.strokeText(`Energy: ${Math.floor(this.energy)}`, this.hp * 25, 16);
+  }
 
+  tick(ctx) {
+    this.move();
+    this.checkCollision();
+    this.frame = this.frame + 1;
+    this.draw(ctx);
+    
     if (this.action !== "walking" && this.velX > 0 && this.velX < 10) {
       this.frame = 0;
       this.action = "walking";
@@ -600,8 +681,12 @@ const ANIMATIONS = {
     y: 131
   },
   explosion: {
-    delay: 20,
+    delay: 5,
     y: 262
+  },
+  swirl: {
+    delay: 10,
+    y: 393
   }
 };
 
@@ -611,8 +696,6 @@ class Light {
     this.husky = husky;
     this.state = "default";
     this.frame = 0;
-    this.width = 48;
-    this.height = 48;
     this.xPos = 135;
     this.yPos = 70;
     this.velX = 0;
@@ -620,41 +703,52 @@ class Light {
     this.lightPng = new Image();
     this.lightPng.src = './assets/images/magic.png';
     this.heldKeys = {};
+    this.heldEnemies = [];
   }
 
-  pressKey(key) {
-    this.heldKeys[key] = true;
-    if (key === " " && this.husky.energy > 4) {
-      if (!this.heldEnemy && this.husky.energy > 4) {
-        this.checkCollision();
-      } else {
-        this.heldEnemy.bound = false;
-        this.heldEnemy = false;
+  pressKey(code) {
+    this.heldKeys[code] = true;
+    if (code === "ShiftLeft" && this.husky.energy > 4 && this.heldEnemies.length < 6) {
+      this.capture();
+      this.husky.energy -= 5;
+      this.frame = 0;
+      this.state = "swirl";
+    } else if (code === "ShiftRight") {
+      if (this.heldEnemies.length > 0) {
+        this.frame = 0;
+        this.state = "default";
+        this.heldEnemies.forEach(enemy => {
+          enemy.velX = this.velX * 2;
+          enemy.velY = this.velY * 2;
+          enemy.bound = false;
+          enemy.stunCount = 30;
+        })
+        this.heldEnemies = [];
       }
     }
   }
 
-  releaseKey(key) {
-    this.heldKeys[key] = false;
+  releaseKey(code) {
+    this.heldKeys[code] = false;
   }
 
-  checkCollision() {
+  capture() {
     const enemies = this.game.enemies;
     for (let i = 0, fin = enemies.length; i < fin; i++) {
-      const enemy = enemies[0];
-      if (Math.abs(this.xPos - enemy.xPos) < 20 && Math.abs(this.yPos - enemy.yPos) < 13) {
-        this.husky.energy -= 5;
-        enemy.bound = true;
-        this.heldEnemy = enemy;
-        break;
+      const enemy = enemies[i];
+      if (!enemy.bound) {
+        if (Math.abs(this.xPos - enemy.xPos) < 30 && Math.abs(this.yPos - enemy.yPos) < 20) {
+          enemy.bound = true;
+          this.heldEnemies.push(enemy);
+        }
       }
     }
   }
 
   move() {
-    if (this.heldKeys.j && this.velX > -5) {
+    if (this.heldKeys.KeyJ && this.velX > -5) {
       this.velX -= 1;
-    } else if (this.heldKeys.l && this.velX < 5) {
+    } else if (this.heldKeys.KeyL && this.velX < 5) {
       this.velX += 1;
     } else {
       if (this.velX > 0) {
@@ -664,9 +758,9 @@ class Light {
       }
     }
 
-    if (this.heldKeys.i && this.velY > -5) {
+    if (this.heldKeys.KeyI && this.velY > -5) {
       this.velY -= 1;
-    } else if (this.heldKeys.k && this.velY < 5) {
+    } else if (this.heldKeys.KeyK && this.velY < 5) {
       this.velY += 1;
     } else {
       if (this.velY > 0) {
@@ -678,24 +772,24 @@ class Light {
 
     this.xPos += this.velX;
     this.yPos += this.velY;
-    if (this.xPos >= 275) {
-      this.xPos = 275;
+    if (this.xPos >= 290) {
+      this.xPos = 290;
       this.velX = 0;
-    } else if (this.xPos <= 0) {
-      this.xPos = 0;
+    } else if (this.xPos <= 10) {
+      this.xPos = 10;
       this.velX = 0;
     }
-    if (this.yPos >= 115) {
-      this.yPos = 115;
+    if (this.yPos >= 130) {
+      this.yPos = 130;
       this.velY = 0;
-    } else if (this.yPos  <= 0) {
-      this.yPos = 0;
+    } else if (this.yPos  <= 30) {
+      this.yPos = 30;
       this.velY = 0;
     }
-    if (this.heldEnemy) {
-      this.heldEnemy.velX = this.velX;
-      this.heldEnemy.velY = this.velY;
-    }
+    this.heldEnemies.forEach(enemy => {
+      enemy.velX = this.velX;
+      enemy.velY = this.velY;
+    })
   }
 
   tick(ctx) {
@@ -704,22 +798,19 @@ class Light {
     if (animIdx === ANIMATIONS.x.length) {
       this.frame = 0;
       animIdx = 0;
-      const changeStateObj = {
-        burst: 'default',
-      };
-      if (changeStateObj[this.state]) {
-        this.state = changeStateObj[this.state];
-      }  
+      if (this.state === "swirl") {
+        if (this.heldEnemies.length > 0) {
+          this.state = "burst";
+        } else {
+          this.state = "default";
+        }
+      }
     } else {
       this.frame = this.frame + 1;
     }
     const x = ANIMATIONS.x[animIdx || 0];
     this.move();
-    ctx.drawImage(this.lightPng, x, animationSet.y, 150, 150, this.xPos, this.yPos, this.width, this.height);
-    const rem = this.game.beat % 90;
-    if ((rem <= 20 || rem >= 70)) {
-      ctx.strokeText(String.fromCharCode(9835), this.xPos + (this.width / 2 - 6), this.yPos + (this.height / 2));
-    }
+    ctx.drawImage(this.lightPng, x, animationSet.y, 150, 150, this.xPos - 24, this.yPos - 24, 48, 48);
 
   }
 }
@@ -741,7 +832,7 @@ class Skeleton extends Enemy {
   constructor(game, husky) {
     super(game, husky);
     this.sprites.src = './assets/images/enemy_skeleton.png';
-    this.animationSet = {
+    this.enemyAnimation = {
       width: 32,
       height: 32,
       delay: 15,
