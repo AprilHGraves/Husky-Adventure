@@ -370,6 +370,7 @@ class Game {
   }
 
   pressKey(e) {
+    e.preventDefault();
     if (e.code === "Enter") {
       if (this.paused) {
         this.play();
