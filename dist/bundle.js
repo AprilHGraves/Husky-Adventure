@@ -300,7 +300,7 @@ class Game {
     this.audio.currentTime = 0;
     this.hiScore = 0;
     this.restart();
-    document.addEventListener('keydown', this.pressKey.bind(this));    
+    document.addEventListener('keydown', this.pressKey.bind(this));
     this.drawOpening();
   }
 
@@ -370,7 +370,7 @@ class Game {
   }
 
   pressKey(e) {
-    e.preventDefault();
+    e.preventDefault(); 
     if (e.code === "Enter") {
       if (this.paused) {
         this.play();
