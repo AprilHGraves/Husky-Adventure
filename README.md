@@ -34,7 +34,7 @@ Different parts of the background scroll left at different speeds when the husky
 The husky is animated differently depending on its current action. At the end of an animation, the animation either loops or switches to a different one.
 ![husky-draw-code](./dist/assets/images/husky-draw-code.png)
 
-If a living, unbound enemy is moving at a high and collides with another enemy, both enemies die.
+If an unbound enemy is moving at a high speed and collides with another unbound enemy, both enemies die.
 ![impact-code](./dist/assets/images/impact-code.png)
 
 ## Credits
